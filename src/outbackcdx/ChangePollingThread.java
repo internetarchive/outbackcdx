@@ -58,47 +58,42 @@ public class ChangePollingThread extends Thread {
 
     public void run() {
         while (!shuttingDown) {
+            long startTime = System.currentTimeMillis();
             try {
-                long startTime = System.currentTimeMillis();
-                try {
-                    byte[] output = this.index.db.get(SEQ_NUM_KEY);
-                    if(output == null){
-                        since = "0";
-                    } else {
-                        since = new String(output);
-                    }
-                } catch (RocksDBException e) {
-                    System.err.println(new Date() + " " + getName() + ": Received rocks db exception while looking up the value of the key " + new String(SEQ_NUM_KEY) + " locally");
-                    e.printStackTrace();
+                byte[] output = this.index.db.get(SEQ_NUM_KEY);
+                if(output == null){
+                    since = "0";
+                } else {
+                    since = new String(output);
                 }
-                finalUrl = primaryReplicationUrl + "/changes?size=" + batchSize + "&since=" + since;
-                try {
-                    if (!shuttingDown) {
-                        replicate();
-                    }
-                } catch (IOException e) {
-                    System.err.println(new Date() + " " + getName() + ": I/O exception processing " + finalUrl);
-                    e.printStackTrace();
-                } catch (RocksDBException e){
-                    System.err.println(new Date() + " " + getName() + ": The plane has crashed into the mountain. RocksDB threw an exception during replication from "+ finalUrl);
-                    e.printStackTrace();
-                } catch (Exception e) {
-                    System.err.println(new Date() + " " + getName() + ": Dang! something happened while processing " + finalUrl);
-                    e.printStackTrace();
-                }
-
-                long sleepTime = (pollingInterval * 1000) - (System.currentTimeMillis() - startTime);
-                if (sleepTime > 0 && !shuttingDown) {
-                    try {
-                        Thread.sleep(sleepTime);
-                    } catch (InterruptedException e) {
-                        System.out.println(new Date() + " " + getName() + ": Received interruption at " + System.currentTimeMillis());
-                        return;
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println(new Date() + " " + getName() + ": proceeding after unexpected exception");
+            } catch (RocksDBException e) {
+                System.err.println(new Date() + " " + getName() + ": Received rocks db exception while looking up the value of the key " + new String(SEQ_NUM_KEY) + " locally");
                 e.printStackTrace();
+            }
+            finalUrl = primaryReplicationUrl + "/changes?size=" + batchSize + "&since=" + since;
+            try {
+                if (!shuttingDown) {
+                    replicate();
+                }
+            } catch (IOException e) {
+                System.err.println(new Date() + " " + getName() + ": I/O exception processing " + finalUrl);
+                e.printStackTrace();
+            } catch (RocksDBException e){
+                System.err.println(new Date() + " " + getName() + ": The plane has crashed into the mountain. RocksDB threw an exception during replication from "+ finalUrl);
+                e.printStackTrace();
+            } catch (Exception e) {
+                System.err.println(new Date() + " " + getName() + ": Dang! something happened while processing " + finalUrl);
+                e.printStackTrace();
+            }
+
+            long sleepTime = (pollingInterval * 1000) - (System.currentTimeMillis() - startTime);
+            if (sleepTime > 0 && !shuttingDown) {
+                try {
+                    Thread.sleep(sleepTime);
+                } catch (InterruptedException e) {
+                    System.out.println(new Date() + " " + getName() + ": Received interruption at " + System.currentTimeMillis());
+                    return;
+                }
             }
         }
         System.err.println(new Date() + " " + getName() + ": finished gracefully");
@@ -125,34 +120,40 @@ public class ChangePollingThread extends Thread {
             String contentString = new BufferedReader(new InputStreamReader(inputStream)).readLine();
             throw new IOException("Received '" + response.getStatusLine() + "' response from " + finalUrl +": \n" + contentString);
         }
-        InputStream content = response.getEntity().getContent();
-        JsonReader reader = GSON.newJsonReader(new InputStreamReader(content));
-        reader.beginArray();
-        while (reader.peek() != JsonToken.END_DOCUMENT && !shuttingDown) {
-            JsonToken nextToken = reader.peek();
-            if (JsonToken.BEGIN_OBJECT.equals(nextToken)) {
-                reader.beginObject();
-            } else if(JsonToken.NAME.equals(nextToken)){
-                String name  =  reader.nextName();
-                if(name.equals("sequenceNumber")){
-                    sequenceNumber = Long.valueOf(reader.nextString());
-                } else if (name.equals("writeBatch")){
-                    writeBatch = reader.nextString();
+        try {
+            InputStream content = response.getEntity().getContent();
+            JsonReader reader = GSON.newJsonReader(new InputStreamReader(content));
+            reader.beginArray();
+            while (reader.peek() != JsonToken.END_DOCUMENT && !shuttingDown) {
+                JsonToken nextToken = reader.peek();
+                if (JsonToken.BEGIN_OBJECT.equals(nextToken)) {
+                    reader.beginObject();
+                } else if(JsonToken.NAME.equals(nextToken)){
+                    String name  =  reader.nextName();
+                    if(name.equals("sequenceNumber")){
+                        sequenceNumber = Long.valueOf(reader.nextString());
+                    } else if (name.equals("writeBatch")){
+                        writeBatch = reader.nextString();
+                    }
+                } else if (JsonToken.END_OBJECT.equals(nextToken)){
+                    reader.endObject();
+                    assert writeBatch != null;
+                    commitWriteBatch(index, sequenceNumber, writeBatch);
+                    if (firstCommitted == null) {
+                        firstCommitted = sequenceNumber;
+                    }
+                    lastCommitted = sequenceNumber;
+                    countCommitted++;
+                    totalLengthCommitted += writeBatch.length();
+                } else if (JsonToken.END_ARRAY.equals(nextToken)){
+                    reader.endArray();
                 }
-            } else if (JsonToken.END_OBJECT.equals(nextToken)){
-                reader.endObject();
-                assert writeBatch != null;
-                commitWriteBatch(index, sequenceNumber, writeBatch);
-                if (firstCommitted == null) {
-                    firstCommitted = sequenceNumber;
-                }
-                lastCommitted = sequenceNumber;
-                countCommitted++;
-                totalLengthCommitted += writeBatch.length();
-            } else if (JsonToken.END_ARRAY.equals(nextToken)){
-                reader.endArray();
             }
+        } catch (Exception e) {
+            System.err.println(new Date() + " " + getName() + ": Foo! something happened while replicating " + finalUrl);
+            e.printStackTrace();
         }
+
 
         String elapsed = String.format("%.3f", 1.0 * (System.currentTimeMillis() - start) / 1000);
         System.out.println(new Date() + " " + getName() + ": replicated "
