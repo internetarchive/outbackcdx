@@ -113,6 +113,7 @@ public class ChangePollingThread extends Thread {
         HttpGet request = new HttpGet(finalUrl);
         long sequenceNumber = 0;
         String writeBatch = null;
+        System.out.println(new Date() + " " + getName() + ": requesting new replication data");
         HttpResponse response = httpclient.execute(request);
 
         if(response.getStatusLine().getStatusCode() != 200){
@@ -150,7 +151,7 @@ public class ChangePollingThread extends Thread {
                 }
             }
         } catch (Exception e) {
-            System.err.println(new Date() + " " + getName() + ": Foo! something happened while replicating " + finalUrl);
+            System.err.println(new Date() + " " + getName() + ": Foo! something bad happened while replicating " + finalUrl);
             e.printStackTrace();
         }
 
