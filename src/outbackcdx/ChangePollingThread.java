@@ -12,8 +12,10 @@ import java.util.Base64;
 import java.util.Date;
 
 import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.WriteBatch;
@@ -108,8 +110,13 @@ public class ChangePollingThread extends Thread {
         Long firstCommitted = null;
         Long lastCommitted = null;
 
-        // strip trailing slash if necessary
-        CloseableHttpClient httpclient = HttpClients.createDefault();
+        // timeouts in milliseconds
+        RequestConfig config = RequestConfig.custom()
+            .setConnectTimeout(10000)
+            .setConnectionRequestTimeout(300000)
+            .setSocketTimeout(5000).build();
+        CloseableHttpClient httpclient =
+            HttpClientBuilder.create().setDefaultRequestConfig(config).build();
         HttpGet request = new HttpGet(finalUrl);
         long sequenceNumber = 0;
         String writeBatch = null;
