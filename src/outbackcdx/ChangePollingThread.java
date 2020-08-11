@@ -125,7 +125,7 @@ public class ChangePollingThread extends Thread {
         HttpGet request = new HttpGet(finalUrl);
         long sequenceNumber = 0;
         String writeBatch = null;
-        System.out.println(new Date() + " " + getName() + ": requesting new replication data");
+        System.out.println(new Date() + " " + getName() + ": requesting replication from " + finalUrl);
         HttpResponse response = httpclient.execute(request);
 
         if(response.getStatusLine().getStatusCode() != 200){
