@@ -118,7 +118,7 @@ public class ChangePollingThread extends Thread {
         // timeouts in milliseconds
         RequestConfig config = RequestConfig.custom()
             .setConnectTimeout(10*1000)
-            .setSocketTimeout(1200*1000)
+            .setSocketTimeout(300*1000)
             .setConnectionRequestTimeout(5*1000).build();
         CloseableHttpClient httpclient =
             HttpClientBuilder.create().setDefaultRequestConfig(config).build();
