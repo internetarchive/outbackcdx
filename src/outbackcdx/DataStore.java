@@ -84,9 +84,6 @@ public class DataStore implements Closeable {
             dbOptions.setCreateIfMissing(createAllowed);
             dbOptions.setMaxBackgroundCompactions(Math.min(8, Runtime.getRuntime().availableProcessors()));
             dbOptions.setAvoidFlushDuringRecovery(true);
-            // qa-master troubleshooting
-            dbOptions.setMaxBackgroundFlushes(2);
-
 
             // if not null, replication data will be available this far back in
             // time (in seconds)
@@ -142,8 +139,6 @@ public class DataStore implements Closeable {
         cfOptions.setTargetFileSizeMultiplier(2);
         cfOptions.setCompressionType(CompressionType.SNAPPY_COMPRESSION);
         cfOptions.setTableFormatConfig(tableConfig);
-        // qa-master troubleshooting
-        cfOptions.setMaxWriteBufferNumber(4);
     }
 
     private void configureColumnFamily(ColumnFamilyOptions cfOptions) throws RocksDBException {
