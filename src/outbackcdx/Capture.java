@@ -7,6 +7,8 @@ import java.nio.ByteOrder;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.Date;
 import java.util.Map;
 import java.util.logging.Level;
@@ -43,6 +45,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class Capture {
     private static final Logger log = Logger.getLogger(Capture.class.getName());
+    private static int CURRENT_VERSION = 3;
     static final DateTimeFormatter arcTimeFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     static final Base32 base32 = new Base32();
 

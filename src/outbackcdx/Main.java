@@ -19,6 +19,7 @@ import java.net.URL;
 import java.nio.channels.Channel;
 import java.nio.channels.ServerSocketChannel;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -194,6 +195,11 @@ public class Main {
                     ExecutorService threadPool = Executors.newFixedThreadPool(webThreads);
                     for (String collectionUrl: collectionUrls) {
                         ChangePollingThread cpt = new ChangePollingThread(collectionUrl, pollingInterval, batchSize, dataStore);
+                        cpt.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                            public void uncaughtException(Thread t, Throwable e) {
+                               System.err.println(new Date() + " " + t + " for " + collectionUrl + " threw otherwise uncaught exception: " + e);
+                            }
+                        });
                         cpt.setDaemon(true);
                         cpt.start();
                     }
